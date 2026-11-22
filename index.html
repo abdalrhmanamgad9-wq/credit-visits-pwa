@@ -11,6 +11,11 @@
   <meta name="application-name" content="Credit Visits">
   <meta name="theme-color" content="#1e3a8a">
 
+  <link rel="preconnect" href="https://script.google.com" crossorigin>
+  <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+  <link rel="dns-prefetch" href="https://script.google.com">
+  <link rel="dns-prefetch" href="https://script.googleusercontent.com">
+
   <link rel="apple-touch-icon" href="./icon-512.png">
   <link rel="icon" type="image/png" href="./icon-512.png">
   <link rel="manifest" href="./manifest.json">
@@ -36,6 +41,7 @@
       text-align: center;
       padding: 24px;
       z-index: 10;
+      transition: opacity 0.2s ease;
     }
     #splash img {
       width: 76px;
@@ -99,17 +105,20 @@
     function onFrameLoaded() {
       frameLoaded = true;
       const splash = document.getElementById('splash');
-      if (splash) splash.style.display = 'none';
+      if (splash) {
+        splash.style.opacity = '0';
+        setTimeout(() => { splash.style.display = 'none'; }, 200);
+      }
     }
 
     setTimeout(function() {
       if (!frameLoaded) {
         const statusEl = document.getElementById('statusText');
         const btn = document.getElementById('fallbackBtn');
-        if (statusEl) statusEl.innerText = 'التحميل يستغرق وقتاً أطول من المعتاد...';
+        if (statusEl) statusEl.innerText = 'جاري إكمال التحميل، يرجى الانتظار...';
         if (btn) btn.style.display = 'inline-block';
       }
-    }, 6000);
+    }, 12000);
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {
