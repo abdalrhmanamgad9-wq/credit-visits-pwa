@@ -11,104 +11,854 @@
   <meta name="application-name" content="Credit Visits">
   <meta name="theme-color" content="#1e3a8a">
 
-  <link rel="preconnect" href="https://script.google.com" crossorigin>
-  <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-  <link rel="dns-prefetch" href="https://script.google.com">
-  <link rel="dns-prefetch" href="https://script.googleusercontent.com">
-
   <link rel="apple-touch-icon" href="./icon-512.png">
   <link rel="icon" type="image/png" href="./icon-512.png">
   <link rel="manifest" href="./manifest.json">
 
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background: #f4f6f9;
-      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+    :root {
+      --primary: #1e3a8a;
+      --primary-dark: #172554;
+      --bg: #f4f6f9;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: #cbd5e1;
+      --danger: #dc2626;
+      --success: #16a34a;
     }
-    #splash {
-      position: fixed;
-      inset: 0;
-      background: #1e3a8a;
-      color: #ffffff;
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 16px 12px 48px;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+    }
+    .container { max-width: 600px; margin: 0 auto; }
+    .card {
+      background: var(--card-bg);
+      border-radius: 15px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      margin-bottom: 18px;
+      overflow: hidden;
+    }
+    .card-header {
+      background: var(--primary);
+      color: #fff;
+      padding: 12px 16px;
+      font-weight: 700;
+      font-size: 15px;
       display: flex;
-      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card-body { padding: 16px; }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px; }
+    .col-12 { grid-column: span 12; }
+    .col-8 { grid-column: span 8; }
+    .col-7 { grid-column: span 7; }
+    .col-6 { grid-column: span 6; }
+    .col-5 { grid-column: span 5; }
+    .col-4 { grid-column: span 4; }
+    .col-3 { grid-column: span 3; }
+
+    label.form-label {
+      display: block;
+      font-weight: 600;
+      font-size: 13px;
+      color: #334155;
+      margin-bottom: 6px;
+    }
+    .required-star { color: var(--danger); }
+    .form-control, .form-select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      font-size: 14px;
+      background: #fff;
+      color: var(--text);
+      outline: none;
+    }
+    .form-control-lg { padding: 12px 14px; font-size: 15px; }
+    .form-control:focus, .form-select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.12);
+    }
+    .readonly-box {
+      background-color: #e2e8f0;
+      pointer-events: none;
+      color: #334155;
+    }
+    .btn {
+      border: none;
+      border-radius: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      text-align: center;
-      padding: 24px;
-      z-index: 10;
-      transition: opacity 0.2s ease;
+      gap: 6px;
     }
-    #splash img {
-      width: 76px;
-      height: 76px;
-      border-radius: 18px;
-      margin-bottom: 14px;
-      background: #ffffff;
-      padding: 6px;
+    .btn-primary { background: var(--primary); color: #fff; padding: 12px 16px; font-size: 15px; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-success { background: var(--success); color: #fff; padding: 10px 14px; font-size: 13px; border-radius: 0 9px 9px 0; }
+    .btn-outline-primary { background: transparent; color: var(--primary); border: 1px solid var(--primary); padding: 6px 12px; font-size: 13px; }
+    .btn-outline-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); padding: 6px 12px; font-size: 13px; }
+    .btn-light { background: #fff; color: var(--primary); padding: 5px 10px; font-size: 12px; }
+    .btn-sm-primary { background: var(--primary); color: #fff; padding: 6px 12px; font-size: 13px; }
+    .w-100 { width: 100%; }
+    .btn-lg { padding: 13px 18px; font-size: 16px; }
+
+    .topbar {
+      background: #fff;
+      border-radius: 14px;
+      padding: 12px 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .badge-admin {
+      background: #fef08a;
+      color: #854d0e;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+      margin-right: 6px;
+    }
+    .input-group { display: flex; align-items: stretch; }
+    .input-group .form-control { border-radius: 9px 0 0 9px; }
+    .text-muted { color: var(--muted); font-size: 12px; }
+    .text-danger { color: var(--danger); font-weight: 700; font-size: 13px; }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: right; vertical-align: middle; }
+    th { background: #f8fafc; font-weight: 700; }
+    .badge-ok { background: #16a34a; color: #fff; padding: 3px 8px; border-radius: 999px; font-size: 11px; }
+    .badge-no { background: #dc2626; color: #fff; padding: 3px 8px; border-radius: 999px; font-size: 11px; }
+    .badge-other { background: #64748b; color: #fff; padding: 3px 8px; border-radius: 999px; font-size: 11px; }
+    .link-btn {
+      display: inline-block;
+      padding: 3px 8px;
+      border: 1px solid #94a3b8;
+      border-radius: 6px;
+      color: #334155;
+      text-decoration: none;
+      font-size: 12px;
+    }
+
+    #loader {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.88);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      text-align: center;
+      padding: 20px;
     }
     .spinner {
-      width: 34px;
-      height: 34px;
-      border: 4px solid rgba(255,255,255,0.3);
-      border-top-color: #ffffff;
+      width: 42px;
+      height: 42px;
+      border: 4px solid #cbd5e1;
+      border-top-color: var(--primary);
       border-radius: 50%;
-      animation: spin 0.9s linear infinite;
-      margin: 14px auto;
+      animation: spin 0.8s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-      display: block;
-    }
   </style>
 </head>
 <body>
-  <div id="splash">
-    <img src="./icon-192.png" alt="Credit Visits">
-    <div style="font-size: 20px; font-weight: 700;">Credit Visits</div>
-    <div class="spinner"></div>
-    <div id="statusText" style="font-size: 14px; opacity: 0.92;">جاري تحميل التطبيق...</div>
+
+<div id="loader">
+  <div class="spinner"></div>
+  <div id="loaderText" style="margin-top: 12px; font-weight: 700; font-size: 15px;">جاري المعالجة...</div>
+</div>
+
+<div class="container">
+
+  <!-- 1. شاشة تسجيل الدخول -->
+  <div id="loginSection" class="card" style="margin-top: 32px;">
+    <div class="card-header" style="justify-content: center; padding: 15px;">
+      <h3 style="margin: 0; font-size: 17px;">Credit Visits - تسجيل الدخول</h3>
+    </div>
+    <div class="card-body">
+      <div style="margin-bottom: 14px;">
+        <label class="form-label">اسم المستخدم (Username)</label>
+        <input type="text" id="loginUser" class="form-control form-control-lg" placeholder="أدخل اسم المستخدم" onkeydown="if(event.key==='Enter') handleLogin();">
+      </div>
+      <div style="margin-bottom: 18px;">
+        <label class="form-label">كلمة المرور (Password)</label>
+        <input type="password" id="loginPass" class="form-control form-control-lg" placeholder="••••••••" onkeydown="if(event.key==='Enter') handleLogin();">
+      </div>
+      <button type="button" id="btnLogin" onclick="handleLogin()" class="btn btn-primary w-100 btn-lg">دخول</button>
+      <div id="loginError" class="text-danger" style="text-align: center; margin-top: 12px;"></div>
+    </div>
   </div>
 
-  <iframe
-    id="appFrame"
-    src="https://script.google.com/macros/s/AKfycby0cyExtj8GlXRIRW91b5KxRXYxJTnNTaw4uzgX1mS7sQq6UZac-k8LAzVBAgx2PW_BYw/exec"
-    allow="geolocation; camera; microphone"
-    referrerpolicy="no-referrer-when-downgrade"
-    onload="onFrameLoaded()">
-  </iframe>
+  <!-- 2. شاشة التطبيق الرئيسية -->
+  <div id="appSection" style="display: none;">
 
-  <script>
-    let frameLoaded = false;
+    <div class="topbar">
+      <div>
+        <span class="text-muted">مرحباً بك،</span>
+        <strong id="welcomeName" style="color: var(--primary);"></strong>
+        <span id="roleBadge" class="badge-admin" style="display: none;">أدمن</span>
+      </div>
+      <div style="display: flex; gap: 6px;">
+        <button type="button" onclick="showTab('form')" id="btnTabForm" class="btn btn-sm-primary">الفورم</button>
+        <button type="button" onclick="showTab('visits')" id="btnTabVisits" class="btn btn-outline-primary">زياراتي</button>
+        <button type="button" onclick="logout()" class="btn btn-outline-danger">خروج</button>
+      </div>
+    </div>
 
-    function onFrameLoaded() {
-      frameLoaded = true;
-      const splash = document.getElementById('splash');
-      if (splash) {
-        splash.style.opacity = '0';
-        setTimeout(() => { splash.style.display = 'none'; }, 200);
-      }
+    <form id="visitForm" onsubmit="handleFormSubmit(event)" oninput="autoFetchLocationIfEmpty()">
+
+      <!-- القسم الأول -->
+      <div class="card">
+        <div class="card-header">1. بيانات المراقب والفرع (تلقائي)</div>
+        <div class="card-body grid">
+          <div class="col-6">
+            <label class="form-label">كود المراقب</label>
+            <input type="text" id="observerCode" class="form-control readonly-box" readonly>
+          </div>
+          <div class="col-6">
+            <label class="form-label">اسم المراقب</label>
+            <input type="text" id="observerName" class="form-control readonly-box" readonly>
+          </div>
+          <div class="col-6">
+            <label class="form-label">اسم المشرف</label>
+            <input type="text" id="supervisorName" class="form-control readonly-box" readonly>
+          </div>
+          <div class="col-6">
+            <label class="form-label">اسم الإقليمي</label>
+            <input type="text" id="regionalName" class="form-control readonly-box" readonly>
+          </div>
+          <div class="col-4">
+            <label class="form-label">المحافظة</label>
+            <input type="text" id="governorate" class="form-control readonly-box" readonly>
+          </div>
+          <div class="col-5">
+            <label class="form-label">اسم الفرع</label>
+            <input type="text" id="branchName" class="form-control readonly-box" readonly>
+          </div>
+          <div class="col-3">
+            <label class="form-label">كود الفرع</label>
+            <input type="text" id="branchCode" class="form-control readonly-box" readonly>
+          </div>
+          <input type="hidden" id="observerEmail">
+          <input type="hidden" id="userRole" value="user">
+        </div>
+      </div>
+
+      <!-- القسم الثاني -->
+      <div class="card">
+        <div class="card-header">2. بيانات العميل والنشاط</div>
+        <div class="card-body grid">
+          <div class="col-5">
+            <label class="form-label">كود العميل <span class="required-star">*</span></label>
+            <input type="text" id="clientCode" class="form-control" required>
+          </div>
+          <div class="col-7">
+            <label class="form-label">اسم العميل <span class="required-star">*</span></label>
+            <input type="text" id="clientName" class="form-control" required>
+          </div>
+          <div class="col-6">
+            <label class="form-label">الرقم القومي (14 رقم) <span class="required-star">*</span></label>
+            <input type="text" id="nationalId" class="form-control" pattern="\d{14}" maxlength="14" placeholder="14 رقم" required>
+          </div>
+          <div class="col-6">
+            <label class="form-label">هاتف العميل (11 رقم) <span class="required-star">*</span></label>
+            <input type="tel" id="clientPhone" class="form-control" pattern="01[0125]\d{8}" maxlength="11" placeholder="01xxxxxxxxx" required>
+          </div>
+          <div class="col-6">
+            <label class="form-label">اسم الضامن <span class="required-star">*</span></label>
+            <input type="text" id="guarantorName" class="form-control" required>
+          </div>
+          <div class="col-6">
+            <label class="form-label">قيمة القرض (5000 - 292000) <span class="required-star">*</span></label>
+            <input type="number" id="loanAmount" class="form-control" min="5000" max="292000" step="1" placeholder="5000 إلى 292000" required>
+          </div>
+          <div class="col-6">
+            <label class="form-label">حالة العميل <span class="required-star">*</span></label>
+            <select id="clientStatus" class="form-select" required>
+              <option value="">اختر...</option>
+              <option value="جديد">جديد</option>
+              <option value="تجديد">تجديد</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label">القطاع <span class="required-star">*</span></label>
+            <select id="sector" class="form-select" required>
+              <option value="">اختر...</option>
+              <option value="تجاري">تجاري</option>
+              <option value="خدمي">خدمي</option>
+              <option value="انتاجي">انتاجي</option>
+            </select>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">نوع النشاط <span class="required-star">*</span></label>
+            <select id="activityType" class="form-select" onchange="toggleOtherActivity()" required>
+              <option value="">اختر نوع النشاط...</option>
+              <option value="بقالة وسوبر ماركت">بقالة وسوبر ماركت</option>
+              <option value="ملابس وأحذية">ملابس وأحذية</option>
+              <option value="مطعم / كافيه">مطعم / كافيه</option>
+              <option value="ورشة صيانة">ورشة صيانة</option>
+              <option value="صيدلية / مستلزمات طبية">صيدلية / مستلزمات طبية</option>
+              <option value="أخرى">أخرى</option>
+            </select>
+          </div>
+          <div class="col-12" id="otherActivityDiv" style="display: none;">
+            <label class="form-label">اذكر النشاط الآخر <span class="required-star">*</span></label>
+            <input type="text" id="otherActivity" class="form-control">
+          </div>
+
+          <div class="col-6">
+            <label class="form-label">مدة استقرار النشاط <span class="required-star">*</span></label>
+            <select id="activityDuration" class="form-select" required>
+              <option value="">اختر...</option>
+              <option value="اقل من سنة">اقل من سنة</option>
+              <option value="سنة">سنة</option>
+              <option value="اكثر من سنة">اكثر من سنة</option>
+              <option value="اكثر من 3 سنوات">اكثر من 3 سنوات</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label">ملكية النشاط <span class="required-star">*</span></label>
+            <select id="activityOwnership" class="form-select" required>
+              <option value="">اختر...</option>
+              <option value="ملك">ملك</option>
+              <option value="ايجار">ايجار</option>
+            </select>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">هل للعميل شريك؟ <span class="required-star">*</span></label>
+            <select id="hasPartner" class="form-select" onchange="togglePartner()" required>
+              <option value="ليس له شريك">ليس له شريك</option>
+              <option value="له شريك">له شريك</option>
+            </select>
+          </div>
+          <div class="col-12" id="partnerDiv" style="display: none;">
+            <label class="form-label">اسم الشريك <span class="required-star">*</span></label>
+            <input type="text" id="partnerName" class="form-control">
+          </div>
+        </div>
+      </div>
+
+      <!-- القسم الثالث -->
+      <div class="card">
+        <div class="card-header">3. الاستعلام والتقييم</div>
+        <div class="card-body grid">
+          <div class="col-12">
+            <label class="form-label">سمعة العميل <span class="required-star">*</span></label>
+            <select id="clientReputation" class="form-select" required>
+              <option value="">اختر...</option>
+              <option value="جيدة">جيدة</option>
+              <option value="غير جيدة">غير جيدة</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label">مصدر استعلام 1 <span class="required-star">*</span></label>
+            <input type="text" id="inquiry1" class="form-control" required>
+          </div>
+          <div class="col-6">
+            <label class="form-label">مصدر استعلام 2 <span class="required-star">*</span></label>
+            <input type="text" id="inquiry2" class="form-control" required>
+          </div>
+          <div class="col-6">
+            <label class="form-label">مصادر الاستعلام 3</label>
+            <input type="text" id="inquiry3" class="form-control">
+          </div>
+          <div class="col-12">
+            <label class="form-label">اسم مالك نشاط ممول من قبل</label>
+            <input type="text" id="previousFundedOwner" class="form-control">
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">القرار (مقبول / مرفوض) <span class="required-star">*</span></label>
+            <select id="decision" class="form-select" onchange="toggleRejection()" required>
+              <option value="">اختر القرار...</option>
+              <option value="مقبول">مقبول</option>
+              <option value="مرفوض">مرفوض</option>
+            </select>
+          </div>
+          <div class="col-12" id="rejectionDiv" style="display: none;">
+            <label class="form-label">سبب الرفض <span class="required-star">*</span></label>
+            <input type="text" id="rejectionReason" class="form-control">
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">ملاحظات المراقب</label>
+            <textarea id="notes" class="form-control" rows="2"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- القسم الرابع -->
+      <div class="card">
+        <div class="card-header">4. المرفقات والموقع الجغرافي</div>
+        <div class="card-body grid">
+          <div class="col-6">
+            <label class="form-label">المرفق 1 (صورة) <span class="required-star">*</span></label>
+            <input type="file" id="att1" class="form-control" accept="image/*" capture="environment" required>
+          </div>
+          <div class="col-6">
+            <label class="form-label">المرفق 2 (صورة) <span class="required-star">*</span></label>
+            <input type="file" id="att2" class="form-control" accept="image/*" capture="environment" required>
+          </div>
+          <div class="col-6">
+            <label class="form-label">المرفق 3 (صورة) <span class="required-star">*</span></label>
+            <input type="file" id="att3" class="form-control" accept="image/*" capture="environment" required>
+          </div>
+          <div class="col-6">
+            <label class="form-label">مرفق إضافي (صورة)</label>
+            <input type="file" id="attExtra" class="form-control" accept="image/*" capture="environment">
+          </div>
+
+          <div class="col-12" style="margin-top: 6px;">
+            <label class="form-label">الموقع الجغرافي (GPS - تلقائي وإجباري) <span class="required-star">*</span></label>
+            <div class="input-group">
+              <button type="button" class="btn btn-success" onclick="getLocation(false)">📍 تحديث الموقع</button>
+              <input type="text" id="location" class="form-control readonly-box" placeholder="جاري التقاط الموقع تلقائياً..." readonly required>
+            </div>
+            <small id="locationStatus" class="text-muted"></small>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary w-100 btn-lg">إرسال وحفظ الزيارة ✅</button>
+    </form>
+
+    <!-- 3. شاشة زيارات المراقب / الأدمن -->
+    <div id="visitsSection" style="display: none;">
+      <div class="card">
+        <div class="card-header">
+          <span id="visitsTitle">الزيارات المسجلة الخاصة بي</span>
+          <button type="button" onclick="loadMyVisits()" class="btn btn-light">تحديث 🔄</button>
+        </div>
+        <div class="card-body" style="padding: 10px;">
+          <div id="visitsEmpty" class="text-muted" style="text-align: center; padding: 24px; display: none;">
+            لا توجد زيارات مسجلة حتى الآن.
+          </div>
+          <div class="table-wrap" id="visitsTableWrapper" style="display: none;">
+            <table>
+              <thead id="visitsTableHead"></thead>
+              <tbody id="visitsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const API_URL = "https://script.google.com/macros/s/AKfycby0cyExtj8GlXRIRW91b5KxRXYxJTnNTaw4uzgX1mS7sQq6UZac-k8LAzVBAgx2PW_BYw/exec";
+  let locationFetching = false;
+
+  async function apiCall(payload) {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      throw new Error("استجابة غير متوقعة من السيرفر");
     }
+  }
 
-    setTimeout(function() {
-      if (!frameLoaded) {
-        const statusEl = document.getElementById('statusText');
-        if (statusEl) statusEl.innerText = 'جاري إكمال التحميل، يرجى الانتظار...';
+  window.onload = function() {
+    try {
+      const savedUser = localStorage.getItem('observerData');
+      if (savedUser) {
+        populateUserData(JSON.parse(savedUser));
       }
-    }, 12000);
+    } catch (e) {}
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {
         navigator.serviceWorker.register('./sw.js').catch(function() {});
       });
     }
-  </script>
+  };
+
+  function showLoader(text) {
+    document.getElementById('loaderText').innerText = text;
+    document.getElementById('loader').style.display = 'flex';
+  }
+  function hideLoader() {
+    document.getElementById('loader').style.display = 'none';
+  }
+
+  async function handleLogin() {
+    const errEl = document.getElementById('loginError');
+    errEl.innerText = "";
+    const user = document.getElementById('loginUser').value.trim();
+    const pass = document.getElementById('loginPass').value.trim();
+
+    if (!user || !pass) {
+      errEl.innerText = "من فضلك أدخل اسم المستخدم وكلمة المرور.";
+      return;
+    }
+
+    showLoader("جاري التحقق من البيانات...");
+    try {
+      const res = await apiCall({ action: "login", username: user, password: pass });
+      hideLoader();
+      if (res && res.success && res.user) {
+        try { localStorage.setItem('observerData', JSON.stringify(res.user)); } catch (e) {}
+        populateUserData(res.user);
+      } else {
+        errEl.innerText = (res && res.message) ? res.message : "اسم المستخدم أو كلمة المرور غير صحيحة";
+      }
+    } catch (err) {
+      hideLoader();
+      errEl.innerText = "تعذر الاتصال بالسيرفر: " + (err && err.message ? err.message : err);
+    }
+  }
+
+  function populateUserData(user) {
+    const role = (user.role || "user").toLowerCase();
+    document.getElementById('loginSection').style.display = 'none';
+    document.getElementById('appSection').style.display = 'block';
+    document.getElementById('welcomeName').innerText = user.name || "";
+    document.getElementById('userRole').value = role;
+
+    const badge = document.getElementById('roleBadge');
+    const visitsTitle = document.getElementById('visitsTitle');
+    if (role === 'admin') {
+      badge.style.display = 'inline-block';
+      visitsTitle.innerText = 'جميع الزيارات المسجلة (صلاحية الأدمن)';
+    } else {
+      badge.style.display = 'none';
+      visitsTitle.innerText = 'الزيارات المسجلة الخاصة بي';
+    }
+
+    document.getElementById('observerCode').value = user.code || "";
+    document.getElementById('observerName').value = user.name || "";
+    document.getElementById('supervisorName').value = user.supervisor || "";
+    document.getElementById('regionalName').value = user.regional || "";
+    document.getElementById('governorate').value = user.governorate || "";
+    document.getElementById('branchName').value = user.branchName || "";
+    document.getElementById('branchCode').value = user.branchCode || "";
+    document.getElementById('observerEmail').value = user.email || "";
+
+    getLocation(true);
+  }
+
+  function logout() {
+    try { localStorage.removeItem('observerData'); } catch (e) {}
+    location.reload();
+  }
+
+  function showTab(tab) {
+    const formSec = document.getElementById('visitForm');
+    const visitsSec = document.getElementById('visitsSection');
+    const btnForm = document.getElementById('btnTabForm');
+    const btnVisits = document.getElementById('btnTabVisits');
+
+    if (tab === 'visits') {
+      formSec.style.display = 'none';
+      visitsSec.style.display = 'block';
+      btnVisits.className = 'btn btn-sm-primary';
+      btnForm.className = 'btn btn-outline-primary';
+      loadMyVisits();
+    } else {
+      visitsSec.style.display = 'none';
+      formSec.style.display = 'block';
+      btnForm.className = 'btn btn-sm-primary';
+      btnVisits.className = 'btn btn-outline-primary';
+      if (!document.getElementById('location').value) {
+        getLocation(true);
+      }
+    }
+  }
+
+  async function loadMyVisits() {
+    const observerCode = document.getElementById('observerCode').value;
+    const role = document.getElementById('userRole').value;
+    if (!observerCode && role !== 'admin') return;
+
+    showLoader("جاري تحميل الزيارات...");
+    try {
+      const res = await apiCall({ action: "getVisits", observerCode: observerCode, role: role });
+      hideLoader();
+      const thead = document.getElementById('visitsTableHead');
+      const tbody = document.getElementById('visitsTableBody');
+      const wrapper = document.getElementById('visitsTableWrapper');
+      const emptyMsg = document.getElementById('visitsEmpty');
+      thead.innerHTML = '';
+      tbody.innerHTML = '';
+
+      if (!res || !res.success || !res.visits || res.visits.length === 0) {
+        wrapper.style.display = 'none';
+        emptyMsg.style.display = 'block';
+        return;
+      }
+
+      emptyMsg.style.display = 'none';
+      wrapper.style.display = 'block';
+
+      const isAdmin = !!res.isAdmin;
+      thead.innerHTML = `
+        <tr>
+          ${isAdmin ? '<th>المراقب</th>' : ''}
+          <th>العميل</th>
+          <th>القرض</th>
+          <th>القرار</th>
+          <th>التاريخ</th>
+          <th>المرفق</th>
+        </tr>
+      `;
+
+      res.visits.forEach(function(v) {
+        const badgeClass = v.decision === 'مقبول' ? 'badge-ok' : (v.decision === 'مرفوض' ? 'badge-no' : 'badge-other');
+        const attLink = v.att1 && v.att1.startsWith('http')
+          ? `<a href="${v.att1}" target="_blank" rel="noopener" class="link-btn">صورة</a>`
+          : '-';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          ${isAdmin ? `<td><div style="font-weight:700;">${v.observerName || '-'}</div><span class="text-muted">${v.observerCode || ''}</span></td>` : ''}
+          <td>
+            <div style="font-weight:700;">${v.clientName || '-'}</div>
+            <span class="text-muted">كود: ${v.clientCode || '-'}</span>
+          </td>
+          <td>${v.loanAmount || '-'}</td>
+          <td><span class="${badgeClass}">${v.decision || '-'}</span></td>
+          <td><span class="text-muted">${v.visitDate || '-'}</span></td>
+          <td>${attLink}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    } catch (err) {
+      hideLoader();
+      alert("تعذر تحميل الزيارات: " + (err && err.message ? err.message : err));
+    }
+  }
+
+  function toggleOtherActivity() {
+    const val = document.getElementById('activityType').value;
+    const div = document.getElementById('otherActivityDiv');
+    const input = document.getElementById('otherActivity');
+    if (val === 'أخرى') {
+      div.style.display = 'block';
+      input.required = true;
+    } else {
+      div.style.display = 'none';
+      input.required = false;
+      input.value = '';
+    }
+  }
+
+  function togglePartner() {
+    const val = document.getElementById('hasPartner').value;
+    const div = document.getElementById('partnerDiv');
+    const input = document.getElementById('partnerName');
+    if (val === 'له شريك') {
+      div.style.display = 'block';
+      input.required = true;
+    } else {
+      div.style.display = 'none';
+      input.required = false;
+      input.value = '';
+    }
+  }
+
+  function toggleRejection() {
+    const val = document.getElementById('decision').value;
+    const div = document.getElementById('rejectionDiv');
+    const input = document.getElementById('rejectionReason');
+    if (val === 'مرفوض') {
+      div.style.display = 'block';
+      input.required = true;
+    } else {
+      div.style.display = 'none';
+      input.required = false;
+      input.value = '';
+    }
+  }
+
+  function autoFetchLocationIfEmpty() {
+    if (!document.getElementById('location').value && !locationFetching) {
+      getLocation(true);
+    }
+  }
+
+  function getLocation(silent) {
+    if (!navigator.geolocation) {
+      if (!silent) alert("المتصفح لا يدعم تحديد الموقع");
+      return;
+    }
+    if (locationFetching) return;
+    locationFetching = true;
+
+    const statusEl = document.getElementById('locationStatus');
+    if (statusEl) statusEl.innerText = "جاري التقاط الإحداثيات تلقائياً...";
+    if (!silent) showLoader("جاري تحديد موقعك بدقة...");
+
+    navigator.geolocation.getCurrentPosition(
+      function(pos) {
+        locationFetching = false;
+        if (!silent) hideLoader();
+        document.getElementById('location').value = pos.coords.latitude + ", " + pos.coords.longitude;
+        if (statusEl) statusEl.innerText = "تم التقاط الموقع تلقائياً.";
+      },
+      function() {
+        locationFetching = false;
+        if (!silent) hideLoader();
+        if (statusEl) statusEl.innerText = "تعذر الالتقاط التلقائي، فعّل GPS أو اضغط تحديث الموقع.";
+        if (!silent) alert("تأكد من تفعيل الـ GPS في الهاتف والسماح للمتصفح بالوصول للموقع.");
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+  }
+
+  async function ensureLocationCaptured() {
+    const locInput = document.getElementById('location');
+    if (locInput.value.trim()) return true;
+    if (!navigator.geolocation) {
+      alert("المتصفح لا يدعم تحديد الموقع الجغرافي.");
+      return false;
+    }
+    showLoader("جاري التقاط الموقع الجغرافي الإجباري...");
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        function(pos) {
+          hideLoader();
+          locInput.value = pos.coords.latitude + ", " + pos.coords.longitude;
+          document.getElementById('locationStatus').innerText = "تم التقاط الموقع تلقائياً.";
+          resolve(true);
+        },
+        function() {
+          hideLoader();
+          alert("الموقع الجغرافي إجباري! فعّل GPS واسمح للمتصفح بالوصول للموقع ثم أعد المحاولة.");
+          resolve(false);
+        },
+        { enableHighAccuracy: true, timeout: 15000 }
+      );
+    });
+  }
+
+  function compressImage(file) {
+    return new Promise((resolve) => {
+      if (!file) { resolve(""); return; }
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = function(event) {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 1000;
+          const scaleSize = img.width > MAX_WIDTH ? (MAX_WIDTH / img.width) : 1;
+          canvas.width = img.width * scaleSize;
+          canvas.height = img.height * scaleSize;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
+        };
+      };
+    });
+  }
+
+  async function handleFormSubmit(e) {
+    e.preventDefault();
+
+    const loanVal = Number(document.getElementById('loanAmount').value);
+    if (isNaN(loanVal) || loanVal < 5000 || loanVal > 292000) {
+      alert("قيمة القرض يجب أن تكون من 5000 إلى 292000 فقط!");
+      document.getElementById('loanAmount').focus();
+      return;
+    }
+
+    const hasLoc = await ensureLocationCaptured();
+    if (!hasLoc || !document.getElementById('location').value.trim()) {
+      return;
+    }
+
+    showLoader("جاري ضغط ورفع الصور وحفظ الزيارة...");
+
+    const att1 = await compressImage(document.getElementById('att1').files[0]);
+    const att2 = await compressImage(document.getElementById('att2').files[0]);
+    const att3 = await compressImage(document.getElementById('att3').files[0]);
+    const attExtra = await compressImage(document.getElementById('attExtra').files[0]);
+
+    const formData = {
+      observerCode: document.getElementById('observerCode').value,
+      observerName: document.getElementById('observerName').value,
+      supervisorName: document.getElementById('supervisorName').value,
+      regionalName: document.getElementById('regionalName').value,
+      governorate: document.getElementById('governorate').value,
+      branchName: document.getElementById('branchName').value,
+      branchCode: document.getElementById('branchCode').value,
+      observerEmail: document.getElementById('observerEmail').value,
+      clientCode: document.getElementById('clientCode').value,
+      clientName: document.getElementById('clientName').value,
+      nationalId: document.getElementById('nationalId').value,
+      clientPhone: document.getElementById('clientPhone').value,
+      guarantorName: document.getElementById('guarantorName').value,
+      loanAmount: loanVal,
+      clientStatus: document.getElementById('clientStatus').value,
+      activityType: document.getElementById('activityType').value,
+      otherActivity: document.getElementById('otherActivity').value,
+      sector: document.getElementById('sector').value,
+      activityDuration: document.getElementById('activityDuration').value,
+      activityOwnership: document.getElementById('activityOwnership').value,
+      hasPartner: document.getElementById('hasPartner').value,
+      partnerName: document.getElementById('partnerName').value,
+      clientReputation: document.getElementById('clientReputation').value,
+      decision: document.getElementById('decision').value,
+      rejectionReason: document.getElementById('rejectionReason').value,
+      previousFundedOwner: document.getElementById('previousFundedOwner').value,
+      notes: document.getElementById('notes').value,
+      inquiry1: document.getElementById('inquiry1').value,
+      inquiry2: document.getElementById('inquiry2').value,
+      inquiry3: document.getElementById('inquiry3').value,
+      location: document.getElementById('location').value,
+      att1: att1,
+      att2: att2,
+      att3: att3,
+      attExtra: attExtra
+    };
+
+    try {
+      const res = await apiCall({ action: "submitVisit", formData: formData });
+      hideLoader();
+      if (res && res.success) {
+        alert("✅ " + res.message);
+        let savedUser = {};
+        try { savedUser = JSON.parse(localStorage.getItem('observerData') || '{}'); } catch (e) {}
+        document.getElementById('visitForm').reset();
+        populateUserData(savedUser);
+        toggleOtherActivity();
+        togglePartner();
+        toggleRejection();
+        showTab('visits');
+        window.scrollTo(0, 0);
+      } else {
+        alert("❌ " + (res && res.message ? res.message : "حدث خطأ غير متوقع"));
+      }
+    } catch (err) {
+      hideLoader();
+      alert("❌ تعذر حفظ الزيارة: " + (err && err.message ? err.message : err));
+    }
+  }
+</script>
 </body>
 </html>
