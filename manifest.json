@@ -1,9 +1,9 @@
 {
   "name": "Credit Visits",
   "short_name": "Credit Visits",
-  "description": "‰Ÿ«„ “Ì«—«  «·„—«ﬁ»Ì‰ Ê«· ﬁÌÌ„ «·«∆ „«‰Ì",
-  "start_url": "https://script.google.com/macros/s/AKfycby0cyExtj8GlXRIRW91b5KxRXYxJTnNTaw4uzgX1mS7sQq6UZac-k8LAzVBAgx2PW_BYw/exec",
-  "scope": "/",
+  "description": "Field Visits and Credit Evaluation App",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#f4f6f9",
