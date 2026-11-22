@@ -136,6 +136,14 @@
     .input-group .form-control { border-radius: 9px 0 0 9px; }
     .text-muted { color: var(--muted); font-size: 12px; }
     .text-danger { color: var(--danger); font-weight: 700; font-size: 13px; }
+    .sync-bar {
+      font-size: 12px;
+      color: var(--muted);
+      padding: 6px 10px;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      display: none;
+    }
 
     .table-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -445,8 +453,9 @@
       <div class="card">
         <div class="card-header">
           <span id="visitsTitle">الزيارات المسجلة الخاصة بي</span>
-          <button type="button" onclick="loadMyVisits()" class="btn btn-light">تحديث 🔄</button>
+          <button type="button" onclick="loadMyVisits(true)" class="btn btn-light">تحديث 🔄</button>
         </div>
+        <div id="visitsSyncBar" class="sync-bar"></div>
         <div class="card-body" style="padding: 10px;">
           <div id="visitsEmpty" class="text-muted" style="text-align: center; padding: 24px; display: none;">
             لا توجد زيارات مسجلة حتى الآن.
@@ -465,20 +474,40 @@
 </div>
 
 <script>
+  // =========================================================================
+  // >>> ضع رابط الـ API (ينتهي بـ /exec) هنا في السطر التالي: <<<
   const API_URL = "https://script.google.com/macros/s/AKfycby0cyExtj8GlXRIRW91b5KxRXYxJTnNTaw4uzgX1mS7sQq6UZac-k8LAzVBAgx2PW_BYw/exec";
+  // =========================================================================
+
   let locationFetching = false;
 
+  function getVisitsCacheKey(observerCode, role) {
+    return "visitsCache_" + String(role || "user").toLowerCase() + "_" + String(observerCode || "");
+  }
+
   async function apiCall(payload) {
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload)
-    });
-    const text = await res.text();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
     try {
-      return JSON.parse(text);
-    } catch (e) {
-      throw new Error("استجابة غير متوقعة من السيرفر");
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      const text = await res.text();
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        throw new Error("استجابة غير متوقعة من السيرفر");
+      }
+    } catch (err) {
+      clearTimeout(timeoutId);
+      if (err && err.name === "AbortError") {
+        throw new Error("انتهت مهلة الاتصال بالسيرفر، حاول مرة أخرى.");
+      }
+      throw err;
     }
   }
 
@@ -516,7 +545,7 @@
       return;
     }
 
-    showLoader("جاري التحقق من البيانات...");
+    showLoader("جاري تسجيل الدخول...");
     try {
       const res = await apiCall({ action: "login", username: user, password: pass });
       hideLoader();
@@ -577,7 +606,7 @@
       visitsSec.style.display = 'block';
       btnVisits.className = 'btn btn-sm-primary';
       btnForm.className = 'btn btn-outline-primary';
-      loadMyVisits();
+      loadMyVisits(false);
     } else {
       visitsSec.style.display = 'none';
       formSec.style.display = 'block';
@@ -589,66 +618,106 @@
     }
   }
 
-  async function loadMyVisits() {
+  function renderVisitsTable(visits, isAdmin) {
+    const thead = document.getElementById('visitsTableHead');
+    const tbody = document.getElementById('visitsTableBody');
+    const wrapper = document.getElementById('visitsTableWrapper');
+    const emptyMsg = document.getElementById('visitsEmpty');
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
+
+    if (!visits || visits.length === 0) {
+      wrapper.style.display = 'none';
+      emptyMsg.style.display = 'block';
+      return;
+    }
+
+    emptyMsg.style.display = 'none';
+    wrapper.style.display = 'block';
+
+    thead.innerHTML = `
+      <tr>
+        ${isAdmin ? '<th>المراقب</th>' : ''}
+        <th>العميل</th>
+        <th>القرض</th>
+        <th>القرار</th>
+        <th>التاريخ</th>
+        <th>المرفق</th>
+      </tr>
+    `;
+
+    visits.forEach(function(v) {
+      const badgeClass = v.decision === 'مقبول' ? 'badge-ok' : (v.decision === 'مرفوض' ? 'badge-no' : 'badge-other');
+      const attLink = v.att1 && v.att1.startsWith('http')
+        ? `<a href="${v.att1}" target="_blank" rel="noopener" class="link-btn">صورة</a>`
+        : '-';
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        ${isAdmin ? `<td><div style="font-weight:700;">${v.observerName || '-'}</div><span class="text-muted">${v.observerCode || ''}</span></td>` : ''}
+        <td>
+          <div style="font-weight:700;">${v.clientName || '-'}</div>
+          <span class="text-muted">كود: ${v.clientCode || '-'}</span>
+        </td>
+        <td>${v.loanAmount || '-'}</td>
+        <td><span class="${badgeClass}">${v.decision || '-'}</span></td>
+        <td><span class="text-muted">${v.visitDate || '-'}</span></td>
+        <td>${attLink}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  async function loadMyVisits(forceSpinner) {
     const observerCode = document.getElementById('observerCode').value;
     const role = document.getElementById('userRole').value;
     if (!observerCode && role !== 'admin') return;
 
-    showLoader("جاري تحميل الزيارات...");
+    const syncBar = document.getElementById('visitsSyncBar');
+    const cacheKey = getVisitsCacheKey(observerCode, role);
+    let hasCached = false;
+
+    try {
+      const cachedRaw = localStorage.getItem(cacheKey);
+      if (cachedRaw) {
+        const cached = JSON.parse(cachedRaw);
+        if (cached && Array.isArray(cached.visits)) {
+          renderVisitsTable(cached.visits, !!cached.isAdmin);
+          hasCached = true;
+          syncBar.style.display = 'block';
+          syncBar.innerText = 'عرض فوري من الكاش — جاري مزامنة أحدث البيانات...';
+        }
+      }
+    } catch (e) {}
+
+    if (!hasCached || forceSpinner) {
+      showLoader("جاري تحميل الزيارات...");
+    }
+
     try {
       const res = await apiCall({ action: "getVisits", observerCode: observerCode, role: role });
       hideLoader();
-      const thead = document.getElementById('visitsTableHead');
-      const tbody = document.getElementById('visitsTableBody');
-      const wrapper = document.getElementById('visitsTableWrapper');
-      const emptyMsg = document.getElementById('visitsEmpty');
-      thead.innerHTML = '';
-      tbody.innerHTML = '';
-
-      if (!res || !res.success || !res.visits || res.visits.length === 0) {
-        wrapper.style.display = 'none';
-        emptyMsg.style.display = 'block';
-        return;
+      if (res && res.success) {
+        const visitsList = res.visits || [];
+        const isAdminFlag = !!res.isAdmin;
+        renderVisitsTable(visitsList, isAdminFlag);
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify({ visits: visitsList, isAdmin: isAdminFlag }));
+        } catch (e) {}
+        syncBar.style.display = 'block';
+        syncBar.innerText = 'تم التحديث من الشيت (' + visitsList.length + ' زيارة)';
+      } else if (!hasCached) {
+        syncBar.style.display = 'none';
+        renderVisitsTable([], role === 'admin');
       }
-
-      emptyMsg.style.display = 'none';
-      wrapper.style.display = 'block';
-
-      const isAdmin = !!res.isAdmin;
-      thead.innerHTML = `
-        <tr>
-          ${isAdmin ? '<th>المراقب</th>' : ''}
-          <th>العميل</th>
-          <th>القرض</th>
-          <th>القرار</th>
-          <th>التاريخ</th>
-          <th>المرفق</th>
-        </tr>
-      `;
-
-      res.visits.forEach(function(v) {
-        const badgeClass = v.decision === 'مقبول' ? 'badge-ok' : (v.decision === 'مرفوض' ? 'badge-no' : 'badge-other');
-        const attLink = v.att1 && v.att1.startsWith('http')
-          ? `<a href="${v.att1}" target="_blank" rel="noopener" class="link-btn">صورة</a>`
-          : '-';
-
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          ${isAdmin ? `<td><div style="font-weight:700;">${v.observerName || '-'}</div><span class="text-muted">${v.observerCode || ''}</span></td>` : ''}
-          <td>
-            <div style="font-weight:700;">${v.clientName || '-'}</div>
-            <span class="text-muted">كود: ${v.clientCode || '-'}</span>
-          </td>
-          <td>${v.loanAmount || '-'}</td>
-          <td><span class="${badgeClass}">${v.decision || '-'}</span></td>
-          <td><span class="text-muted">${v.visitDate || '-'}</span></td>
-          <td>${attLink}</td>
-        `;
-        tbody.appendChild(tr);
-      });
     } catch (err) {
       hideLoader();
-      alert("تعذر تحميل الزيارات: " + (err && err.message ? err.message : err));
+      if (!hasCached) {
+        syncBar.style.display = 'none';
+        alert("تعذر تحميل الزيارات: " + (err && err.message ? err.message : err));
+      } else {
+        syncBar.innerText = 'تعذر التحديث الآن، المعروض هو آخر نسخة محفوظة.';
+      }
     }
   }
 
