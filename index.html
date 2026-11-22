@@ -465,3 +465,497 @@
               <thead id="visitsTableHead"></thead>
               <tbody id="visitsTableBody"></tbody>
             </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // =========================================================================
+  // >>> رابط الـ API (ينتهي بـ /exec) <<<
+  const API_URL = "https://script.google.com/macros/s/AKfycby0cyExtj8GlXRIRW91b5KxRXYxJTnNTaw4uzgX1mS7sQq6UZac-k8LAzVBAgx2PW_BYw/exec";
+  // =========================================================================
+
+  let locationFetching = false;
+
+  function getVisitsCacheKey(observerCode, role) {
+    return "visitsCache_" + String(role || "user").toLowerCase() + "_" + String(observerCode || "");
+  }
+
+  async function apiCall(payload) {
+    const isReadOrLogin = (payload.action === "login" || payload.action === "getVisits");
+    const timeoutMs = isReadOrLogin ? 25000 : 45000;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      let res;
+      if (isReadOrLogin) {
+        const params = new URLSearchParams({ action: payload.action });
+        if (payload.action === "login") {
+          params.set("username", payload.username || "");
+          params.set("password", payload.password || "");
+        } else if (payload.action === "getVisits") {
+          params.set("observerCode", payload.observerCode || "");
+          params.set("role", payload.role || "user");
+        }
+        res = await fetch(API_URL + "?" + params.toString(), {
+          method: "GET",
+          signal: controller.signal
+        });
+      } else {
+        res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(payload),
+          signal: controller.signal
+        });
+      }
+
+      clearTimeout(timer);
+      const text = await res.text();
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        throw new Error("استجابة غير متوقعة من السيرفر");
+      }
+    } catch (err) {
+      clearTimeout(timer);
+      if (err && err.name === "AbortError") {
+        throw new Error("انتهت مهلة الاتصال بالسيرفر، حاول مرة أخرى.");
+      }
+      throw err;
+    }
+  }
+
+  window.onload = function() {
+    try {
+      const savedUser = localStorage.getItem('observerData');
+      if (savedUser) {
+        populateUserData(JSON.parse(savedUser));
+      }
+    } catch (e) {}
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('./sw.js').catch(function() {});
+      });
+    }
+  };
+
+  function showLoader(text) {
+    document.getElementById('loaderText').innerText = text;
+    document.getElementById('loader').style.display = 'flex';
+  }
+  function hideLoader() {
+    document.getElementById('loader').style.display = 'none';
+  }
+
+  async function handleLogin() {
+    const errEl = document.getElementById('loginError');
+    const btnLogin = document.getElementById('btnLogin');
+    errEl.innerText = "";
+
+    const user = document.getElementById('loginUser').value.trim();
+    const pass = document.getElementById('loginPass').value.trim();
+
+    if (!user || !pass) {
+      errEl.innerText = "من فضلك أدخل اسم المستخدم وكلمة المرور.";
+      return;
+    }
+
+    if (btnLogin) btnLogin.disabled = true;
+    showLoader("جاري تسجيل الدخول...");
+
+    try {
+      const res = await apiCall({ action: "login", username: user, password: pass });
+      hideLoader();
+      if (btnLogin) btnLogin.disabled = false;
+
+      if (res && res.success && res.user) {
+        try { localStorage.setItem('observerData', JSON.stringify(res.user)); } catch (e) {}
+        populateUserData(res.user);
+      } else {
+        errEl.innerText = (res && res.message) ? res.message : "اسم المستخدم أو كلمة المرور غير صحيحة";
+      }
+    } catch (err) {
+      hideLoader();
+      if (btnLogin) btnLogin.disabled = false;
+      errEl.innerText = "تعذر الاتصال بالسيرفر: " + (err && err.message ? err.message : err);
+    }
+  }
+
+  function populateUserData(user) {
+    const role = (user.role || "user").toLowerCase();
+    document.getElementById('loginSection').style.display = 'none';
+    document.getElementById('appSection').style.display = 'block';
+    document.getElementById('welcomeName').innerText = user.name || "";
+    document.getElementById('userRole').value = role;
+
+    const badge = document.getElementById('roleBadge');
+    const visitsTitle = document.getElementById('visitsTitle');
+    if (role === 'admin') {
+      badge.style.display = 'inline-block';
+      visitsTitle.innerText = 'جميع الزيارات المسجلة (صلاحية الأدمن)';
+    } else {
+      badge.style.display = 'none';
+      visitsTitle.innerText = 'الزيارات المسجلة الخاصة بي';
+    }
+
+    document.getElementById('observerCode').value = user.code || "";
+    document.getElementById('observerName').value = user.name || "";
+    document.getElementById('supervisorName').value = user.supervisor || "";
+    document.getElementById('regionalName').value = user.regional || "";
+    document.getElementById('governorate').value = user.governorate || "";
+    document.getElementById('branchName').value = user.branchName || "";
+    document.getElementById('branchCode').value = user.branchCode || "";
+    document.getElementById('observerEmail').value = user.email || "";
+
+    getLocation(true);
+  }
+
+  function logout() {
+    try { localStorage.removeItem('observerData'); } catch (e) {}
+    location.reload();
+  }
+
+  function showTab(tab) {
+    const formSec = document.getElementById('visitForm');
+    const visitsSec = document.getElementById('visitsSection');
+    const btnForm = document.getElementById('btnTabForm');
+    const btnVisits = document.getElementById('btnTabVisits');
+
+    if (tab === 'visits') {
+      formSec.style.display = 'none';
+      visitsSec.style.display = 'block';
+      btnVisits.className = 'btn btn-sm-primary';
+      btnForm.className = 'btn btn-outline-primary';
+      loadMyVisits(false);
+    } else {
+      visitsSec.style.display = 'none';
+      formSec.style.display = 'block';
+      btnForm.className = 'btn btn-sm-primary';
+      btnVisits.className = 'btn btn-outline-primary';
+      if (!document.getElementById('location').value) {
+        getLocation(true);
+      }
+    }
+  }
+
+  function renderVisitsTable(visits, isAdmin) {
+    const thead = document.getElementById('visitsTableHead');
+    const tbody = document.getElementById('visitsTableBody');
+    const wrapper = document.getElementById('visitsTableWrapper');
+    const emptyMsg = document.getElementById('visitsEmpty');
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
+
+    if (!visits || visits.length === 0) {
+      wrapper.style.display = 'none';
+      emptyMsg.style.display = 'block';
+      return;
+    }
+
+    emptyMsg.style.display = 'none';
+    wrapper.style.display = 'block';
+
+    thead.innerHTML = `
+      <tr>
+        ${isAdmin ? '<th>المراقب</th>' : ''}
+        <th>العميل</th>
+        <th>القرض</th>
+        <th>القرار</th>
+        <th>التاريخ</th>
+        <th>المرفق</th>
+      </tr>
+    `;
+
+    visits.forEach(function(v) {
+      const badgeClass = v.decision === 'مقبول' ? 'badge-ok' : (v.decision === 'مرفوض' ? 'badge-no' : 'badge-other');
+      const attLink = v.att1 && v.att1.startsWith('http')
+        ? `<a href="${v.att1}" target="_blank" rel="noopener" class="link-btn">صورة</a>`
+        : '-';
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        ${isAdmin ? `<td><div style="font-weight:700;">${v.observerName || '-'}</div><span class="text-muted">${v.observerCode || ''}</span></td>` : ''}
+        <td>
+          <div style="font-weight:700;">${v.clientName || '-'}</div>
+          <span class="text-muted">كود: ${v.clientCode || '-'}</span>
+        </td>
+        <td>${v.loanAmount || '-'}</td>
+        <td><span class="${badgeClass}">${v.decision || '-'}</span></td>
+        <td><span class="text-muted">${v.visitDate || '-'}</span></td>
+        <td>${attLink}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  async function loadMyVisits(forceSpinner) {
+    const observerCode = document.getElementById('observerCode').value;
+    const role = document.getElementById('userRole').value;
+    if (!observerCode && role !== 'admin') return;
+
+    const syncBar = document.getElementById('visitsSyncBar');
+    const cacheKey = getVisitsCacheKey(observerCode, role);
+    let hasCached = false;
+
+    try {
+      const cachedRaw = localStorage.getItem(cacheKey);
+      if (cachedRaw) {
+        const cached = JSON.parse(cachedRaw);
+        if (cached && Array.isArray(cached.visits)) {
+          renderVisitsTable(cached.visits, !!cached.isAdmin);
+          hasCached = true;
+          syncBar.style.display = 'block';
+          syncBar.innerText = 'عرض فوري من الكاش — جاري مزامنة أحدث البيانات...';
+        }
+      }
+    } catch (e) {}
+
+    if (!hasCached || forceSpinner) {
+      showLoader("جاري تحميل الزيارات...");
+    }
+
+    try {
+      const res = await apiCall({ action: "getVisits", observerCode: observerCode, role: role });
+      hideLoader();
+      if (res && res.success) {
+        const visitsList = res.visits || [];
+        const isAdminFlag = !!res.isAdmin;
+        renderVisitsTable(visitsList, isAdminFlag);
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify({ visits: visitsList, isAdmin: isAdminFlag }));
+        } catch (e) {}
+        syncBar.style.display = 'block';
+        syncBar.innerText = 'تم التحديث من الشيت (' + visitsList.length + ' زيارة)';
+      } else if (!hasCached) {
+        syncBar.style.display = 'none';
+        renderVisitsTable([], role === 'admin');
+      }
+    } catch (err) {
+      hideLoader();
+      if (!hasCached) {
+        syncBar.style.display = 'none';
+        alert("تعذر تحميل الزيارات: " + (err && err.message ? err.message : err));
+      } else {
+        syncBar.innerText = 'تعذر التحديث الآن، المعروض هو آخر نسخة محفوظة.';
+      }
+    }
+  }
+
+  function toggleOtherActivity() {
+    const val = document.getElementById('activityType').value;
+    const div = document.getElementById('otherActivityDiv');
+    const input = document.getElementById('otherActivity');
+    if (val === 'أخرى') {
+      div.style.display = 'block';
+      input.required = true;
+    } else {
+      div.style.display = 'none';
+      input.required = false;
+      input.value = '';
+    }
+  }
+
+  function togglePartner() {
+    const val = document.getElementById('hasPartner').value;
+    const div = document.getElementById('partnerDiv');
+    const input = document.getElementById('partnerName');
+    if (val === 'له شريك') {
+      div.style.display = 'block';
+      input.required = true;
+    } else {
+      div.style.display = 'none';
+      input.required = false;
+      input.value = '';
+    }
+  }
+
+  function toggleRejection() {
+    const val = document.getElementById('decision').value;
+    const div = document.getElementById('rejectionDiv');
+    const input = document.getElementById('rejectionReason');
+    if (val === 'مرفوض') {
+      div.style.display = 'block';
+      input.required = true;
+    } else {
+      div.style.display = 'none';
+      input.required = false;
+      input.value = '';
+    }
+  }
+
+  function autoFetchLocationIfEmpty() {
+    if (!document.getElementById('location').value && !locationFetching) {
+      getLocation(true);
+    }
+  }
+
+  function getLocation(silent) {
+    if (!navigator.geolocation) {
+      if (!silent) alert("المتصفح لا يدعم تحديد الموقع");
+      return;
+    }
+    if (locationFetching) return;
+    locationFetching = true;
+
+    const statusEl = document.getElementById('locationStatus');
+    if (statusEl) statusEl.innerText = "جاري التقاط الإحداثيات تلقائياً...";
+    if (!silent) showLoader("جاري تحديد موقعك بدقة...");
+
+    navigator.geolocation.getCurrentPosition(
+      function(pos) {
+        locationFetching = false;
+        if (!silent) hideLoader();
+        document.getElementById('location').value = pos.coords.latitude + ", " + pos.coords.longitude;
+        if (statusEl) statusEl.innerText = "تم التقاط الموقع تلقائياً.";
+      },
+      function() {
+        locationFetching = false;
+        if (!silent) hideLoader();
+        if (statusEl) statusEl.innerText = "تعذر الالتقاط التلقائي، فعّل GPS أو اضغط تحديث الموقع.";
+        if (!silent) alert("تأكد من تفعيل الـ GPS في الهاتف والسماح للمتصفح بالوصول للموقع.");
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+  }
+
+  async function ensureLocationCaptured() {
+    const locInput = document.getElementById('location');
+    if (locInput.value.trim()) return true;
+    if (!navigator.geolocation) {
+      alert("المتصفح لا يدعم تحديد الموقع الجغرافي.");
+      return false;
+    }
+    showLoader("جاري التقاط الموقع الجغرافي الإجباري...");
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        function(pos) {
+          hideLoader();
+          locInput.value = pos.coords.latitude + ", " + pos.coords.longitude;
+          document.getElementById('locationStatus').innerText = "تم التقاط الموقع تلقائياً.";
+          resolve(true);
+        },
+        function() {
+          hideLoader();
+          alert("الموقع الجغرافي إجباري! فعّل GPS واسمح للمتصفح بالوصول للموقع ثم أعد المحاولة.");
+          resolve(false);
+        },
+        { enableHighAccuracy: true, timeout: 15000 }
+      );
+    });
+  }
+
+  function compressImage(file) {
+    return new Promise((resolve) => {
+      if (!file) { resolve(""); return; }
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = function(event) {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 1000;
+          const scaleSize = img.width > MAX_WIDTH ? (MAX_WIDTH / img.width) : 1;
+          canvas.width = img.width * scaleSize;
+          canvas.height = img.height * scaleSize;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
+        };
+      };
+    });
+  }
+
+  async function handleFormSubmit(e) {
+    e.preventDefault();
+
+    const loanVal = Number(document.getElementById('loanAmount').value);
+    if (isNaN(loanVal) || loanVal < 5000 || loanVal > 292000) {
+      alert("قيمة القرض يجب أن تكون من 5000 إلى 292000 فقط!");
+      document.getElementById('loanAmount').focus();
+      return;
+    }
+
+    const hasLoc = await ensureLocationCaptured();
+    if (!hasLoc || !document.getElementById('location').value.trim()) {
+      return;
+    }
+
+    showLoader("جاري ضغط ورفع الصور وحفظ الزيارة...");
+
+    const att1 = await compressImage(document.getElementById('att1').files[0]);
+    const att2 = await compressImage(document.getElementById('att2').files[0]);
+    const att3 = await compressImage(document.getElementById('att3').files[0]);
+    const attExtra = await compressImage(document.getElementById('attExtra').files[0]);
+
+    const formData = {
+      observerCode: document.getElementById('observerCode').value,
+      observerName: document.getElementById('observerName').value,
+      supervisorName: document.getElementById('supervisorName').value,
+      regionalName: document.getElementById('regionalName').value,
+      governorate: document.getElementById('governorate').value,
+      branchName: document.getElementById('branchName').value,
+      branchCode: document.getElementById('branchCode').value,
+      observerEmail: document.getElementById('observerEmail').value,
+      clientCode: document.getElementById('clientCode').value,
+      clientName: document.getElementById('clientName').value,
+      nationalId: document.getElementById('nationalId').value,
+      clientPhone: document.getElementById('clientPhone').value,
+      guarantorName: document.getElementById('guarantorName').value,
+      loanAmount: loanVal,
+      clientStatus: document.getElementById('clientStatus').value,
+      activityType: document.getElementById('activityType').value,
+      otherActivity: document.getElementById('otherActivity').value,
+      sector: document.getElementById('sector').value,
+      activityDuration: document.getElementById('activityDuration').value,
+      activityOwnership: document.getElementById('activityOwnership').value,
+      hasPartner: document.getElementById('hasPartner').value,
+      partnerName: document.getElementById('partnerName').value,
+      clientReputation: document.getElementById('clientReputation').value,
+      decision: document.getElementById('decision').value,
+      rejectionReason: document.getElementById('rejectionReason').value,
+      previousFundedOwner: document.getElementById('previousFundedOwner').value,
+      notes: document.getElementById('notes').value,
+      inquiry1: document.getElementById('inquiry1').value,
+      inquiry2: document.getElementById('inquiry2').value,
+      inquiry3: document.getElementById('inquiry3').value,
+      location: document.getElementById('location').value,
+      att1: att1,
+      att2: att2,
+      att3: att3,
+      attExtra: attExtra
+    };
+
+    try {
+      const res = await apiCall({ action: "submitVisit", formData: formData });
+      hideLoader();
+      if (res && res.success) {
+        alert("✅ " + res.message);
+        let savedUser = {};
+        try { savedUser = JSON.parse(localStorage.getItem('observerData') || '{}'); } catch (e) {}
+        document.getElementById('visitForm').reset();
+        populateUserData(savedUser);
+        toggleOtherActivity();
+        togglePartner();
+        toggleRejection();
+        showTab('visits');
+        window.scrollTo(0, 0);
+      } else {
+        alert("❌ " + (res && res.message ? res.message : "حدث خطأ غير متوقع"));
+      }
+    } catch (err) {
+      hideLoader();
+      alert("❌ تعذر حفظ الزيارة: " + (err && err.message ? err.message : err));
+    }
+  }
+</script>
+</body>
+</html>
